@@ -85,6 +85,31 @@ jobs:
           name: kernel-flashable-zip
           path: kernel-*.zip
 
+      - name: Upload flashable zip to Gofile
+        id: gofile
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          GOFILE_TOKEN: ${{ secrets.GOFILE_TOKEN }}
+        run: |
+          set -euo pipefail
+          ZIP=$(ls kernel-*.zip | head -1)
+          args=(-F "file=@${ZIP};type=application/zip")
+          if [[ -n "${GOFILE_TOKEN:-}" ]]; then
+            args+=(-F "token=${GOFILE_TOKEN}")
+          fi
+          server="$(curl -fsSL https://api.gofile.io/servers | jq -r '.data.servers[0].name // empty')"
+          [[ -n "$server" ]] || server="store1"
+          link=""
+          for attempt in 1 2 3; do
+            response="$(curl -fsSL --retry 2 "https://${server}.gofile.io/contents/uploadfile" "${args[@]}" || true)"
+            link="$(printf '%s' "$response" | jq -r '.data.downloadPage // empty')"
+            [[ "$link" == https://* ]] && break
+            echo "::warning::Gofile attempt ${attempt} did not return a download page."
+            sleep 10
+          done
+          echo "Gofile: ${link}"
+
       - name: Upload Image.gz
         uses: actions/upload-artifact@v4
         with:
