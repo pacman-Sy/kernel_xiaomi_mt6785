@@ -1,0 +1,58 @@
+name: Build Kernel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  ARCH: arm64
+  DEFCONFIG: begonia_user_defconfig
+  # TRB (The Raging Beast) clang from VoltageOS. Only branches 16/17 are
+  # published on the gitlab mirror; point TRB_CLANG_REPO/BRANCH at a
+  # mirror that carries 18 if you have one.
+  TRB_CLANG_REPO: https://gitlab.com/varunhardgamer/trb_clang.git
+  TRB_CLANG_BRANCH: "17"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bc bison flex libssl-dev \
+            libncurses5-dev libelf-dev cpio kmod wget git python3
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Clone TRB clang
+        run: |
+          git clone --depth=1 --branch "${TRB_CLANG_BRANCH}" \
+            "${TRB_CLANG_REPO}" clang-trb
+          echo "CLANG_BIN=$PWD/clang-trb/bin" >> $GITHUB_ENV
+          ls clang-trb/bin | head
+
+      - name: Build kernel
+        run: |
+          export PATH="$CLANG_BIN:$PATH"
+          make O=out ARCH=$ARCH $DEFCONFIG
+          make -j$(nproc) O=out ARCH=$ARCH \
+            CC="$CLANG_BIN/clang" \
+            CROSS_COMPILE="$CLANG_BIN/aarch64-linux-gnu-" \
+            CROSS_COMPILE_ARM32="$CLANG_BIN/arm-linux-gnueabi-" \
+            LD="$CLANG_BIN/ld.lld" \
+            AR="$CLANG_BIN/llvm-ar" \
+            NM="$CLANG_BIN/llvm-nm" \
+            OBJCOPY="$CLANG_BIN/llvm-objcopy" \
+            OBJDUMP="$CLANG_BIN/llvm-objdump" \
+            STRIP="$CLANG_BIN/llvm-strip" \
+            LLVM=1 LLVM_IAS=1
+
+      - name: Upload Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-image
+          path: out/arch/arm64/boot/Image.gz
