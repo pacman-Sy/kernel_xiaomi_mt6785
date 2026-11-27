@@ -48,6 +48,34 @@ __weak void ged_dvfs_set_gaming_boost(int enable) { }
 __weak int set_ios_color_mode(int mode) { return 0; }
 __weak int get_ios_color_mode(void) { return 0; }
 
+/* Stubs for Pox helper hooks that have no implementation on begonia's
+ * base tree. Weak so any real implementation elsewhere takes precedence. */
+__weak int pox_lm36273_hbm_set(int mode) { return 0; }
+__weak int pox_lm36273_hbm_get(void) { return 0; }
+__weak int pox_touch_game_mode_set(int enable) { return 0; }
+__weak int pox_touch_sensitivity_set(int val) { return 0; }
+__weak int pox_battery_bypass_get(void) { return 0; }
+__weak void pox_battery_bypass_set(int enable) {}
+__weak int pox_battery_limit_get(void) { return 0; }
+__weak void pox_battery_limit_set(int limit) {}
+__weak int pox_battery_status_get(char *buf, size_t size) { return 0; }
+__weak int pox_touch_game_mode_get(void) { return 0; }
+__weak int pox_touch_sensitivity_get(void) { return 0; }
+__weak int pox_headphone_gain_get(void) { return 0; }
+__weak int pox_headphone_gain_set(int val) { return 0; }
+__weak int pox_vibrator_strength_get(void) { return 0; }
+__weak int pox_vibrator_strength_set(int vol) { return 0; }
+__weak int pox_wakelock_blocker_get(void) { return 0; }
+__weak void pox_wakelock_blocker_set(int enable) {}
+__weak int pox_fast_charge_get(void) { return 0; }
+__weak void pox_fast_charge_set(int enable) {}
+__weak int pox_dt2w_get(void) { return 0; }
+__weak int pox_dt2w_set(int enable) { return 0; }
+__weak int pox_mic_gain_get(void) { return 0; }
+__weak int pox_mic_gain_set(int gain) { return 0; }
+__weak int pox_dynamic_fsync_get(void) { return 0; }
+__weak void pox_dynamic_fsync_set(int enable) {}
+
 static int gaming_mode_state = GAMING_MODE_DISABLED;
 static int user_color_mode_override = -1;
 static int camera_4k60_force = 0;
