@@ -64,6 +64,14 @@ jobs:
           git clone --depth=1 --branch "${ANYKERNEL_BRANCH}" \
             "${ANYKERNEL_REPO}" AnyKernel3
 
+      - name: Remove Android version check from AnyKernel3
+        run: |
+          cd AnyKernel3
+          # Drop the OS-version gate so the zip flashes on any Android release.
+          sed -i '/^supported\.versions=/d' anykernel.sh
+          sed -i '/^supported\.patchlevels=/d' anykernel.sh
+          grep -n 'supported\.' anykernel.sh || echo "no supported.* lines left"
+
       - name: Package flashable zip
         run: |
           if [ -f out/arch/$ARCH/boot/Image.gz ]; then
