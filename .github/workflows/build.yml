@@ -8,11 +8,12 @@ on:
 env:
   ARCH: arm64
   DEFCONFIG: begonia_user_defconfig
-  # TRB (The Raging Beast) clang from VoltageOS. Only branches 16/17 are
-  # published on the gitlab mirror; point TRB_CLANG_REPO/BRANCH at a
-  # mirror that carries 18 if you have one.
-  TRB_CLANG_REPO: https://gitlab.com/varunhardgamer/trb_clang.git
-  TRB_CLANG_BRANCH: "17"
+  # TRB (The Raging Beast) Clang 18 from VoltageOS — the toolchain VoltageOS
+  # uses to build its begonia kernels. Pinned to the same commit pox uses.
+  TRB_CLANG_URL: https://gitlab.com/voltageos/clang/-/archive/b0fa406b3f65eae210c60dda2e91dae979e4b3a8/clang-b0fa406b3f65eae210c60dda2e91dae979e4b3a8.tar.gz
+  TRB_CLANG_PIN: b0fa406b3f65eae210c60dda2e91dae979e4b3a8
+  ANYKERNEL_REPO: https://github.com/cvnertnc/AnyKernel3/
+  ANYKERNEL_BRANCH: begonia
 
 jobs:
   build:
@@ -24,21 +25,27 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential bc bison flex libssl-dev \
-            libncurses5-dev libelf-dev cpio kmod wget git python3
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential cpio curl flex libelf-dev libssl-dev \
+            libncurses5-dev wget zip unzip git python3
 
-      - name: Clone TRB clang
+      - name: Download TRB Clang 18
         run: |
-          git clone --depth=1 --branch "${TRB_CLANG_BRANCH}" \
-            "${TRB_CLANG_REPO}" clang-trb
-          echo "CLANG_BIN=$PWD/clang-trb/bin" >> $GITHUB_ENV
-          ls clang-trb/bin | head
+          mkdir -p toolchains/clang
+          curl -L --fail --retry 3 -o clang.tar.gz "${TRB_CLANG_URL}"
+          tar -xzf clang.tar.gz -C toolchains/clang --strip-components=1
+          rm -f clang.tar.gz
+          echo "CLANG_BIN=$PWD/toolchains/clang/bin" >> $GITHUB_ENV
+          toolchains/clang/bin/clang --version | head -1
+
+      - name: Make defconfig
+        run: |
+          export PATH="$CLANG_BIN:$PATH"
+          make O=out ARCH=$ARCH $DEFCONFIG
 
       - name: Build kernel
         run: |
           export PATH="$CLANG_BIN:$PATH"
-          make O=out ARCH=$ARCH $DEFCONFIG
           make -j$(nproc) O=out ARCH=$ARCH \
             CC="$CLANG_BIN/clang" \
             CROSS_COMPILE="$CLANG_BIN/aarch64-linux-gnu-" \
@@ -51,7 +58,33 @@ jobs:
             STRIP="$CLANG_BIN/llvm-strip" \
             LLVM=1 LLVM_IAS=1
 
-      - name: Upload Image
+      - name: Clone AnyKernel3
+        run: |
+          git clone --depth=1 --branch "${ANYKERNEL_BRANCH}" \
+            "${ANYKERNEL_REPO}" AnyKernel3
+
+      - name: Package flashable zip
+        run: |
+          if [ -f out/arch/$ARCH/boot/Image.gz ]; then
+            cp -f out/arch/$ARCH/boot/Image.gz AnyKernel3/
+          elif [ -f out/arch/$ARCH/boot/Image ]; then
+            cp -f out/arch/$ARCH/boot/Image AnyKernel3/
+          else
+            echo "No kernel image found"; exit 1
+          fi
+          cd AnyKernel3
+          BUILD_TIME=$(date +"%Y%m%d-%H%M")
+          zip -q -r "../kernel-${BUILD_TIME}.zip" .
+          cd ..
+          echo "ZIP=kernel-${BUILD_TIME}.zip" >> $GITHUB_ENV
+
+      - name: Upload flashable zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-flashable-zip
+          path: kernel-*.zip
+
+      - name: Upload Image.gz
         uses: actions/upload-artifact@v4
         with:
           name: kernel-image
