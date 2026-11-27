@@ -17,7 +17,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             bc bison build-essential cpio curl flex libelf-dev libssl-dev \
             libncurses5-dev wget zip unzip git python3 \
-            libxml2 libxml2-dev zlib1g libtinfo6 libc++1 libc++abi1
+            libxml2 libxml2-dev zlib1g libtinfo5 libc++1 libc++abi1
 
       - name: Download TRB Clang 18
         run: |
